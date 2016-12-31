@@ -9,6 +9,9 @@ class TestTripTracker(TestCase):
         self.assertEquals(tracker.mileage, 0)
         self.assertEquals(tracker.last_turn_fraction, 0)
         self.assertEquals(tracker.total_trip_distance, 2040)
+        self.assertEquals(tracker.distance_to_mountains, 950)
+        self.assertFalse(tracker.cleared_south_pass)
+        self.assertFalse(tracker.cleared_blue_mountains)
 
     def test_random_advance(self):
         tracker = TripTracker()
@@ -46,10 +49,16 @@ class TestTripTracker(TestCase):
         last_turn_mileage += tracker.total_trip_distance - tracker.mileage
         tracker.add_mileage(tracker.total_trip_distance - tracker.mileage)
         self.assertTrue(tracker.reached_oregon())
-        self.assertEqual(tracker.last_turn_fraction, 1-(last_turn_mileage / 2040))
+        self.assertEqual(tracker.last_turn_fraction, 1 - (last_turn_mileage / 2040))
 
     def test_reached_oregon_zero_division(self):
         tracker = TripTracker()
         tracker.add_mileage(tracker.total_trip_distance)
         self.assertTrue(tracker.reached_oregon())
         self.assertEqual(tracker.last_turn_fraction, 0)
+
+    def test_reached_mountains(self):
+        tracker = TripTracker()
+        self.assertFalse(tracker.reached_mountains())
+        tracker.add_mileage(tracker.distance_to_mountains)
+        self.assertTrue(tracker.reached_mountains())

@@ -4,6 +4,7 @@ from datetime import timedelta
 from random import random
 from sys import stdout
 from time import time
+from time import sleep
 from msvcrt import kbhit, getche
 
 
@@ -17,20 +18,26 @@ class TripTracker(object):
     # during a turn
     def add_mileage(self, gained_ground):
         self.last_advance += gained_ground
-        self._mileage += gained_ground
+        self._mileage += int(gained_ground)
 
     def subtract_mileage(self, lost_ground):
-        self._mileage -= lost_ground
+        self._mileage -= int(lost_ground)
         if self._mileage < 0:
             self._mileage = 0
 
     def print_mileage(self):
         print "TOTAL MILEAGE IS", self.mileage
 
+    def reached_mountains(self):
+        if self._mileage >= self._DISTANCE_TO_MOUNTAINS:
+            return True
+        return False
+
     def reached_oregon(self):
         if self._mileage >= self._TOTAL_TRIP_DISTANCE:
             try:
-                self._last_turn_fraction = (self._TOTAL_TRIP_DISTANCE - self.last_advance) / (self._mileage - self.last_advance)
+                self._last_turn_fraction = (self._TOTAL_TRIP_DISTANCE - self.last_advance) /\
+                                           (self._mileage - self.last_advance)
             except ZeroDivisionError:
                 self._last_turn_fraction = 0
             return True
@@ -48,11 +55,34 @@ class TripTracker(object):
     def total_trip_distance(self):
         return self._TOTAL_TRIP_DISTANCE
 
+    @property
+    def distance_to_mountains(self):
+        return self._DISTANCE_TO_MOUNTAINS
+
+    @property
+    def cleared_south_pass(self):
+        return self._cleared_south_pass
+
+    @cleared_south_pass.setter
+    def cleared_south_pass(self, value):
+        self._cleared_south_pass = value
+
+    @property
+    def cleared_blue_mountains(self):
+        return self._cleared_blue_mountains
+
+    @cleared_blue_mountains.setter
+    def cleared_blue_mountains(self, value):
+        self._cleared_blue_mountains = value
+
     def __init__(self):
         self.last_advance = 0
         self._last_turn_fraction = 0
         self._mileage = 0
         self._TOTAL_TRIP_DISTANCE = 2040
+        self._DISTANCE_TO_MOUNTAINS = 950
+        self._cleared_south_pass = False
+        self._cleared_blue_mountains = False
 
 
 # The DOW and year will be hardcoded, we advance two
@@ -90,6 +120,7 @@ class Calendar(object):
         self._TOTAL_TURN_COUNT = 18
 
 
+# TODO: rename "TurnState"
 class Health(object):
     @property
     def injured(self):
@@ -107,9 +138,39 @@ class Health(object):
     def illness(self, value):
         self._ill = value
 
+    @property
+    def blizzard(self):
+        return self._blizzard
+
+    @blizzard.setter
+    def blizzard(self, value):
+        self._blizzard = value
+
+    @property
+    def eating_state(self):
+        return self._eating_state
+
+    @eating_state.setter
+    def eating_state(self, value):
+        if value < 1 or value > 3:
+            self._eating_state = 0
+        else:
+            self._eating_state = value
+
+    def eating_poorly(self):
+        return self._eating_state == 1
+
+    def eating_moderately(self):
+        return self._eating_state == 2
+
+    def eating_well(self):
+        return self._eating_state == 3
+
     def __init__(self):
         self._injured = False
         self._ill = False
+        self._blizzard = False
+        self._eating_state = 0
 
 
 class InventoryItem(object):
@@ -169,6 +230,37 @@ class Inventory(object):
         self.misc = InventoryItem()
 
 
+def ask_yes_no(prompt):
+    prompt += " "
+    response = str(raw_input(prompt)).lower().strip()
+    if response[0] == 'y':
+        return True
+    if response[0] == 'n':
+        return False
+    else:
+        return ask_yes_no(prompt)
+
+
+def ask_numeric(prompt, lower_bound=None, upper_bound=None):
+    if not prompt.endswith(" "):
+        prompt += " "
+    response = str(raw_input(prompt)).lower().strip()
+    try:
+        value = int(response)
+    except ValueError:
+        print "IMPOSSIBLE"
+        return ask_numeric(prompt, lower_bound, upper_bound)
+    if lower_bound is not None:
+        if value < lower_bound:
+            print "TOO LOW"
+            return ask_numeric(prompt, lower_bound, upper_bound)
+    if upper_bound is not None:
+        if value > upper_bound:
+            print "TOO HIGH"
+            return ask_numeric(prompt, lower_bound, upper_bound)
+    return value
+
+
 def print_instructions():
     print "Instructions!"
     print "THIS PROGRAM SIMULATES A TRIP OVER THE OREGON TRAIL FROM"
@@ -216,37 +308,6 @@ def print_instructions():
     print "GOOD LUCK!!!"
 
 
-def ask_yes_no(prompt):
-    prompt += " "
-    response = str(raw_input(prompt)).lower().strip()
-    if response[0] == 'y':
-        return True
-    if response[0] == 'n':
-        return False
-    else:
-        return ask_yes_no(prompt)
-
-
-def ask_numeric(prompt, lower_bound=None, upper_bound=None):
-    if not prompt.endswith(" "):
-        prompt += " "
-    response = str(raw_input(prompt)).lower().strip()
-    try:
-        value = int(response)
-    except ValueError:
-        print "IMPOSSIBLE"
-        return ask_numeric(prompt, lower_bound, upper_bound)
-    if lower_bound is not None:
-        if value < lower_bound:
-            print "TOO LOW"
-            return ask_numeric(prompt, lower_bound, upper_bound)
-    if upper_bound is not None:
-        if value > upper_bound:
-            print "TOO HIGH"
-            return ask_numeric(prompt, lower_bound, upper_bound)
-    return value
-
-
 def initial_purchases():
     inv = Inventory()
 
@@ -275,61 +336,201 @@ def initial_purchases():
     return inv
 
 
-# TODO : event selection
 def event_selection(inv, track, health):
     option = 0
     ranges = [6, 11, 13, 15, 17, 22, 32, 35, 37, 42, 44, 54, 64, 69, 95]
     random_number = 100 * random()
-    i = 0
     for value in ranges:
         if random_number <= value:
-            option = i
             break
-        i += 1
+        option += 1
+
     if option == 0:  # wagon breaks down
-        return
+        print "WAGON BREAKS DOWN--LOSE TIME AND SUPPLIES FIXING IT"
+        track.subtract_mileage(15 + 5 * random())
+        inv.misc.subtract(8)
+        sleep(1)
     elif option == 1:  # ox injure leg
-        return
+        print "OX INJURES LEG---SLOWS YOU DOWN REST OF TRIP"
+        track.subtract_mileage(25)
+        inv.oxen.subtract(20)
+        sleep(1)
     elif option == 2:  # daughter breaks arm
-        return
+        print "BAD LUCK---YOUR DAUGHTER BROKE HER ARM"
+        print "YOU HAD TO STOP AND USE SUPPLIES TO MAKE A SLING"
+        track.subtract_mileage(5 + 4 * random())
+        inv.misc.subtract(2 + 3 * random())
+        sleep(1)
     elif option == 3:  # ox wanders off
-        return
+        print "OX WANDERS OFF---SPEND TIME LOOKING FOR IT"
+        track.subtract_mileage(17)
+        sleep(1)
     elif option == 4:  # son gets lost
-        return
+        print "YOUR SON GETS LOST---SPEND HALF THE DAY LOOKING FOR HIM"
+        track.subtract_mileage(10)
+        sleep(1)
     elif option == 5:  # unsafe water
-        return
+        print "UNSAFE WATER--LOSE TIME LOOKING FOR CLEAN SPRING"
+        track.subtract_mileage((10 * random()) + 2)
+        sleep(1)
     elif option == 6:  # heavy rains (mountains only)
-        return
+        if track.reached_mountains():
+            print "HEAVY RAINS---TIME AND SUPPLIES LOST"
+            inv.food.subtract(10)
+            inv.bullets.subtract(500)
+            inv.misc.subtract(15)
+            track.subtract_mileage((10 * random()) + 5)
+            sleep(1)
     elif option == 7:  # bandits attack
-        return
+        print "BANDITS ATTACK"
+        sleep(1)
+        response, entry_time = read_input_with_timeout("TYPE BANG", 7)
+        inv.bullets.subtract(20 * entry_time)
+        if inv.bullets.value <= 0:
+            print "YOU RAN OUT OF BULLETS---THEY GET LOTS OF CASH"
+            inv.spend(inv.money * 0.66)
+        elif entry_time <= 1:
+            print "QUICKEST DRAW OUTSIDE OF DODGE CITY!!!"
+            print "YOU GOT 'EM!"
+        else:
+            print "YOU GOT SHOT IN THE LEG AND THEY TOOK ONE OF YOUR OXEN"
+            print "BETTER HAVE A DOC LOOK AT YOUR WOUND"
+            health.injured = True
+            inv.misc.subtract(5)
+            inv.oxen.subtract(20)
     elif option == 8:  # fire in the wagon
-        return
+        print "THERE WAS A FIRE IN YOUR WAGON--FOOD AND SUPPLIES DAMAGED"
+        inv.food.subtract(40)
+        inv.bullets.subtract(400)
+        inv.misc.subtract((random()*8) + 3)
+        track.subtract_mileage(15)
+        sleep(1)
     elif option == 9:  # heavy fog
-        return
+        print "LOSE YOUR WAY IN HEAVY FOG---TIME IS LOST"
+        track.subtract_mileage(10 + (5 * random()))
+        sleep(1)
     elif option == 10:  # poisonous snake
-        return
+        print "YOU KILLED A POISONOUS SNAKE AFTER IT BIT YOU"
+        inv.bullets.subtract(10)
+        inv.misc.subtract(5)
+        sleep(1)
+        if inv.misc.value <= 0:
+            print "YOU DIE OF SNAKEBITE SINCE YOU HAVE NO MEDICINE"
+            dying()
     elif option == 11:  # wagon swamped fording river
-        return
+        print "WAGON GETS SWAMPED FORDING RIVER--LOSE FOOD AND CLOTHES"
+        inv.food.subtract(30)
+        inv.clothing.subtract(20)
+        track.subtract_mileage(20 + (20 * random()))
+        sleep(1)
     elif option == 12:  # wild animals attack
-        return
+        print "WILD ANIMALS ATTACK!"
+        sleep(1)
+        response, entry_time = read_input_with_timeout("TYPE BANG", 7)
+        if inv.bullets.value < 40:
+            print "YOU WERE TOO LOW ON BULLETS--"
+            print "THE WOLVES OVERPOWERED YOU"
+            health.injured = True
+        if entry_time <= 2:
+            print "NICE SHOOTIN' PARDNER---THEY DIDN'T GET MUCH"
+        else:
+            print "SLOW ON THE DRAW---THEY GOT AT YOUR FOOD AND CLOTHES"
+        inv.bullets.subtract(20 * entry_time)
+        inv.clothing.subtract(4 * entry_time)
+        inv.food.subtract(8 * entry_time)
     elif option == 13:  # cold weather
-        return
+        message = "COLD WEATHER---BRRRRRRR!---YOU "
+        insufficient_clothing = False
+        if inv.clothing.value < (22 + (4 * random())):
+            message += "DON'T "
+            insufficient_clothing = True
+        message += "HAVE ENOUGH CLOTHING TO KEEP YOU WARM"
+        print message
+        sleep(1)
+        if insufficient_clothing:
+            illness(inv, track, health)
     elif option == 14:  # hail storm
-        return
+        print "HAIL STORM---SUPPLIES DAMAGED"
+        track.subtract_mileage(5 + (10 * random()))
+        inv.bullets.subtract(200)
+        inv.misc.subtract(4 + (3 * random()))
+        sleep(1)
     elif option == 15:  # illness (based on eating choice)
-        return
+        if health.eating_poorly():
+            illness(inv, track, health)
+        elif health.eating_moderately() and random() > 0.25:
+            illness(inv, track, health)
+        elif health.eating_well() and random() < 0.5:
+            illness(inv, track, health)
+        sleep(1)
     else:  # helpful indians
+        print "HELPFUL INDIANS SHOW YOU WHERE TO FIND MORE FOOD"
+        inv.food.add(14)
+        sleep(1)
+
+
+def mountains(inv, track, health):
+    if not track.reached_mountains():
         return
 
+    if (random() * 10) <= (9 - ((track.mileage / 100 - 15) ** 2 + 72) / ((track.mileage / 100 - 15) ** 2 + 12)):
+        print "RUGGED MOUNTAINS"
+        if random() <= 0.1:
+            print "YOU GOT LOST---LOSE VALUABLE TIME TRYING TO FIND TRAIL!"
+            track.subtract_mileage(60)
+        elif random() <= 0.11:
+            print "WAGON DAMAGED!---LOSE TIME AND SUPPLIES"
+            track.subtract_mileage(20 + (30 * random()))
+            inv.misc.subtract(5)
+            inv.bullets.subtract(200)
+        else:
+            print "THE GOING GETS SLOW"
+            track.subtract_mileage(45 + (random() / 0.02))
 
-def mountains():
-    # if mileage less than or equal to 950, goto next turn
-    # rugged mountains?
-    # wagon damaged?
-    # slow going?
-    # south pass logic, need static flag here
+    # First pass evaluated at 950 miles (reached_mountains)
+    if not track.cleared_south_pass:
+        track.cleared_south_pass = True
+        if random() < 0.8:
+            blizzard(inv, track, health)
+        else:
+            print "YOU MADE IT SAFELY THROUGH SOUTH PASS--NO SNOW"
+
+    # Second pass (blue mountains) at 1700 miles
+    if track.mileage >= 1700 and not track.cleared_blue_mountains:
+        track.cleared_blue_mountains = True
+        if random() < 0.7:
+            blizzard(inv, track, health)
+
+
+def blizzard(inv, track, health):
+    print "BLIZZARD IN MOUNTAIN PASS--TIME AND SUPPLIES LOST"
+    inv.food.subtract(25)
+    inv.misc.subtract(10)
+    inv.bullets.subtract(300)
+    track.subtract_mileage(30 + (40 * random()))
+    if inv.clothing.value < (18 + (2 * random())):
+        illness(inv, track, health)
+
+
+def illness(inv, track, health):
+    if (100 * random()) < (10 + (35 * health.eating_state - 1)):
+        print "MILD ILLNESS---MEDICINE USED"
+        track.subtract_mileage(5)
+        inv.misc.subtract(2)
+    elif (100 * random()) < (100 - (40 / (4 ** (health.eating_state - 1)))):
+        print "BAD ILLNESS---MEDICINE USED"
+        track.subtract_mileage(5)
+        inv.misc.subtract(5)
+    if inv.misc.value < 0:
+        print "YOU RAN OUT MEDICAL SUPPLIES"
+        message = "YOU DIED OF ";
+        if health.injured:
+            message += "INJURIES"
+        else:
+            message += "PNEUMONIA"
+        print message
+        dying()
     return
-# def illness():
 
 
 # The convoluted original logic for a rider attack: RND(0)*10>((M/100-4)^2+72)/((M/100-4)^2+12)-1
@@ -362,7 +563,9 @@ def riders_attack(inv, track, health):
             inv.oxen.subtract(40)
         elif response == 2:  # attack
             response, entry_time = read_input_with_timeout("TYPE BANG", 7)
-            inv.bullets.subtract((entry_time * 40) - 80)
+            # Original bullet loss was "B=B-B1*40-80". This produces a gain in bullets
+            # when response time is less than 2 seconds and small losses when the value is longer (max: 200)
+            inv.bullets.subtract(entry_time * 28.57)
             if entry_time <= 1:
                 print "NICE SHOOTING---YOU DROVE THEM OFF"
             elif entry_time <= 4:
@@ -427,12 +630,13 @@ def next_fort(inv, track):
     track.subtract_mileage(45)
 
 
-def eating(inv):
+def eating(inv, health):
     response = ask_numeric("DO YOU WANT TO EAT (1) POORLY  (2) MODERATELY\nOR (3) WELL", 1, 3)
     food_eaten = 8 + 5 * response
     if inv.food.value < food_eaten:
         print "YOU CAN'T EAT THAT WELL"
-        return eating(inv)
+        return eating(inv, health)
+    health.eating_state = response
     inv.food.subtract(food_eaten)
 
 
@@ -464,7 +668,6 @@ def completed_trip(inv, track, cal):
 
     cal.rollback_date(int(track.last_turn_fraction * 14))
     cal.print_date()
-    # TODO: Rollback food since a full two weeks were not spent on this turn. Formula: F=F+(1-F9)*(8+5*E)
     inv.print_inventory()
 
     print "PRESIDENT JAMES K. POLK SENDS YOU HIS"
@@ -492,6 +695,7 @@ def completed_trip(inv, track, cal):
 # print response
 
 
+# TODO: refactor.  caption could be hard coded, bang response is fixed, rename this 'shoot'
 def read_input_with_timeout(caption, timeout=7):
     start_time = time()
     stdout.write('%s ' % caption)
@@ -551,6 +755,7 @@ if __name__ == "__main__":
         calendar.print_date()
         inventory.zeroize_negative_values()
 
+        # Resolve health issues from the previous turn
         if healthState.illness or healthState.injured:
             inventory.spend(20)
             if inventory.money < 0:
@@ -565,9 +770,11 @@ if __name__ == "__main__":
                 healthState.illness = False
                 healthState.injured = False
 
+        # Show inventory status and mileage
         inventory.print_warnings()
         tracker.print_mileage()
 
+        # Ask for turn options
         inventory.print_inventory()
         turn_response = ask_numeric("DO YOU WANT TO (1) STOP AT THE NEXT FORT, (2) HUNT, \nOR (3) CONTINUE", 1, 3)
         if turn_response == 1:
@@ -575,22 +782,30 @@ if __name__ == "__main__":
         elif turn_response == 2:
             hunt(inventory, tracker)
 
-        # eating
+        # Eating
         if inventory.food.value < 13:
             print "YOU RAN OUT OF FOOD AND STARVED TO DEATH"
             dying()
-        eating(inventory)
+        eating(inventory, healthState)
 
-        # Advance mileage
+        # Advance mileage now, events may subtract from overall
+        # progress for each turn
         tracker.random_advance(inventory.oxen)
 
+        # Rider attack
         if do_riders_attack(tracker):
             riders_attack(inventory, tracker, healthState)
 
+        # Random per turn events
         event_selection(inventory, tracker, healthState)
 
+        # Mountain events
+        mountains(inventory, tracker, healthState)
+
+        # Move to next turn
         calendar.advance_date()
 
+    # Turns have been exhausted or Oregon has been reached
     if tracker.reached_oregon:
         completed_trip(inventory, tracker, calendar)
     else:
