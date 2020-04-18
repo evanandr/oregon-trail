@@ -1,5 +1,5 @@
 from unittest import TestCase
-from oregon import Calendar
+from oregon.tracking.calendar import Calendar
 from datetime import date
 from datetime import timedelta
 

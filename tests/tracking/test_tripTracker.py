@@ -1,6 +1,6 @@
 from unittest import TestCase
-from oregon import TripTracker
-from oregon import InventoryItem
+from oregon.tracking.triptracker import TripTracker
+from oregon.inventory.inventory_item import InventoryItem
 
 
 class TestTripTracker(TestCase):

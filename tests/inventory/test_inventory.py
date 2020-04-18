@@ -1,5 +1,5 @@
 from unittest import TestCase
-from oregon import Inventory
+from oregon.inventory.inventory import Inventory
 
 
 class TestInventory(TestCase):
