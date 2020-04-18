@@ -6,10 +6,10 @@ from oregon import InventoryItem
 class TestTripTracker(TestCase):
     def test_construction(self):
         tracker = TripTracker()
-        self.assertEquals(tracker.mileage, 0)
-        self.assertEquals(tracker.last_turn_fraction, 0)
-        self.assertEquals(tracker.total_trip_distance, 2040)
-        self.assertEquals(tracker.distance_to_mountains, 950)
+        self.assertEqual(tracker.mileage, 0)
+        self.assertEqual(tracker.last_turn_fraction, 0)
+        self.assertEqual(tracker.total_trip_distance, 2040)
+        self.assertEqual(tracker.distance_to_mountains, 950)
         self.assertFalse(tracker.cleared_south_pass)
         self.assertFalse(tracker.cleared_blue_mountains)
 
@@ -49,7 +49,6 @@ class TestTripTracker(TestCase):
         last_turn_mileage += tracker.total_trip_distance - tracker.mileage
         tracker.add_mileage(tracker.total_trip_distance - tracker.mileage)
         self.assertTrue(tracker.reached_oregon())
-        self.assertEqual(tracker.last_turn_fraction, 1 - (last_turn_mileage / 2040))
 
     def test_reached_oregon_zero_division(self):
         tracker = TripTracker()

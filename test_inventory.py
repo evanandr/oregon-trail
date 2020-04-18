@@ -5,22 +5,22 @@ from oregon import Inventory
 class TestInventory(TestCase):
     def test_construction(self):
         inv = Inventory()
-        self.assertEquals(inv.money, 700)
-        self.assertEquals(inv.oxen.value, 0)
-        self.assertEquals(inv.food.value, 0)
-        self.assertEquals(inv.bullets.value, 0)
-        self.assertEquals(inv.clothing.value, 0)
-        self.assertEquals(inv.misc.value, 0)
+        self.assertEqual(inv.money, 700)
+        self.assertEqual(inv.oxen.value, 0)
+        self.assertEqual(inv.food.value, 0)
+        self.assertEqual(inv.bullets.value, 0)
+        self.assertEqual(inv.clothing.value, 0)
+        self.assertEqual(inv.misc.value, 0)
 
     def test_spend(self):
         inv = Inventory()
         inv.spend(1)
-        self.assertEquals(inv.money, 699)
+        self.assertEqual(inv.money, 699)
 
     def test_spend_negative(self):
         inv = Inventory()
         inv.spend(701)
-        self.assertEquals(inv.money, -1)
+        self.assertEqual(inv.money, -1)
 
     def test_zeroize_negative_values(self):
         inv = Inventory()
@@ -33,8 +33,8 @@ class TestInventory(TestCase):
 
         inv.zeroize_negative_values()
 
-        self.assertEquals(inv.oxen.value, 0)
-        self.assertEquals(inv.food.value, 0)
-        self.assertEquals(inv.bullets.value, 0)
-        self.assertEquals(inv.clothing.value, 0)
-        self.assertEquals(inv.misc.value, 0)
+        self.assertEqual(inv.oxen.value, 0)
+        self.assertEqual(inv.food.value, 0)
+        self.assertEqual(inv.bullets.value, 0)
+        self.assertEqual(inv.clothing.value, 0)
+        self.assertEqual(inv.misc.value, 0)
